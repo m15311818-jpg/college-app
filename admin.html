@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم رفع الملفات</title>
+    <!-- ربط مكتبة Firebase -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
+        body { background: #f0f2f5; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .admin-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        h2 { color: #1e3c72; margin-bottom: 20px; font-size: 22px; }
+        input[type="file"] { display: none; }
+        .file-label { display: block; background: #e3f2fd; color: #0d47a1; border: 2px dashed #1e88e5; padding: 20px; border-radius: 8px; cursor: pointer; margin-bottom: 20px; font-weight: bold; transition: 0.3s; }
+        .file-label:hover { background: #bbdefb; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 20px; text-align: center; font-size: 16px; }
+        button { background: #2e7d32; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
+        button:hover { background: #1b5e20; }
+        #status { margin-top: 15px; font-weight: bold; color: #d32f2f; }
+    </style>
+</head>
+<body>
+
+<div class="admin-card">
+    <h2>📤 لوحة تحكم رفع المحاضرات</h2>
+    
+    <input type="text" id="file-title" placeholder="اكتب اسم المحاضرة أو الشيت هنا">
+    
+    <label for="file-input" class="file-label" id="drop-text">📁 اضغط هنا لاختيار ملف (PDF / Word)</label>
+    <input type="file" id="file-input" accept=".pdf,.doc,.docx">
+    
+    <button onclick="uploadFile()">اضغط للرفع المباشر فوراً</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    // ⚠️ ضع هنا إعدادات Firebase الخاصة بك
+    const firebaseConfig = {
+        databaseURL: "https://YOUR_PROJECT_://firebaseio.com" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // تحديث اسم الملف عند اختياره
+    const fileInput = document.getElementById('file-input');
+    fileInput.addEventListener('change', () => {
+        if(fileInput.files.length > 0) {
+            document.getElementById('drop-text').innerText = "📄 تم اختيار: " + fileInput.files[0].name;
+        }
+    });
+
+    async function uploadFile() {
+        const title = document.getElementById('file-title').value;
+        const file = fileInput.files[0];
+        const statusDiv = document.getElementById('status');
+
+        if (!title || !file) {
+            statusDiv.innerText = "رجاءً اكتب اسم الملف واختر ملف أولاً!";
+            return;
+        }
+
+        statusDiv.style.color = "#ff9800";
+        statusDiv.innerText = "جاري رفع الملف للسيرفر المباشر...";
+
+        // رفع الملف إلى استضافة ImgBB/File سريعة مجانية عبر تحويله لـ FormData
+        const formData = new FormData();
+        formData.append('image', file); // سنستخدم بروتوكول الرفع المباشر
+
+        try {
+            // كود رفع مجاني مؤقت سريع (يمكنك استخدام مفتاح تtoken الخاص بك لـ ImgBB أو سيرفر ملفات)
+            // لتسهيل التجربة سنقوم برفع الرابط المباشر للملف
+            const imgbbKey = 'حط_مفتاح_api_بتاع_imgbb_هنا'; 
+            const response = await fetch(`https://imgbb.com{imgbbKey}`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            if(result.success) {
+                const fileUrl = result.data.url; // رابط الملف المرفوع
+
+                // حفظ اسم الملف ولينكه في Firebase عشان يروح للتطبيق فوراً
+                database.ref('uploaded_files').push({
+                    title: title,
+                    url: fileUrl,
+                    timestamp: Date.now()
+                });
+
+                statusDiv.style.color = "#2e7d32";
+                statusDiv.innerText = "✅ تم الرفع بنجاح ووصل للتطبيق فوراً!";
+                document.getElementById('file-title').value = '';
+                document.getElementById('drop-text').innerText = "📁 اضغط هنا لاختيار ملف آخر";
+            } else {
+                statusDiv.innerText = "فشل الرفع، تأكد من مفتاح الـ API الخاص بـ ImgBB";
+            }
+        } catch (error) {
+            statusDiv.innerText = "حدث خطأ أثناء الاتصال بالشبكة.";
+        }
+    }
+</script>
+</body>
+</html>
